@@ -60,26 +60,12 @@ Xi = sparsifyDynamics(Theta, X2, lambda_,n)
 
 ## Set Plant Matrices
 # These are the initial estimated plant matrices
- 
-# Set "A" and "B" matrices
-Ats = Xi[1:n,0]
-Bts = Xi[n,0]
-for x in range(1,s):
-    Ats = np.vstack([Ats,Xi[1:n,x]])
-    Bts = np.vstack([Bts,Xi[n,x]])
-
-# Set "C" matrix
-Cts = np.zeros(n - 1) # Set correct size for the output matrix
-Cts[0] = 1 # We are only interested in the first state in this example
-Cts = np.expand_dims(Cts,axis=0) # Need to set matrix dimensions properly
-
-# Set "D" matrix
-Dts = 0.*np.matmul(Cts,Bts)
+Ats, Bts, Cts, Dts = estimatePlants(Xi,n,s)
 
 # Set prediction and control points
 Np = 100
 Nc = 5
-Delta_t = 0.5
+Delta_t = 0.5 # 2 Hz delta time
 
 A_e, B_e, C_e, Hessian, Phi_F, Phi_R = mpcgain(Ats,Bts,Cts,Nc,Np)
 [n,n_in] = B_e.shape
@@ -97,10 +83,10 @@ N_sim = 250 # number of simulation points (!!)
 r = 10 # target value for the MPC (!!)
 u = 0 # u(k-1) = 0
 y = ic
-Old_Ats = Ats
 
 u1=[]
 y1=[]
+ref=[]
 
 ## Simulate over number of simulation points
 for kk in range(0,N_sim):
@@ -122,6 +108,7 @@ for kk in range(0,N_sim):
     # Record input and meaurement info
     u1 = np.append(u1,u)
     y1 = np.append(y1,y)
+    ref = np.append(ref,r)
     
     # Calculate system's response
     xm_old = xm
@@ -151,22 +138,7 @@ for kk in range(0,N_sim):
     Xi = sparsifyDynamics(Theta, X2, lambda_,n)
     
     ## Update Estimated Plant Matrices
-    # Copied from earlier code
-    
-    # Set "A" and "B" matrices
-    Ats = Xi[1:n,0]
-    Bts = Xi[n,0]
-    for x in range(1,s):
-        Ats = np.vstack([Ats,Xi[1:n,x]])
-        Bts = np.vstack([Bts,Xi[n,x]])
-    
-    # Set "C" matrix
-    Cts = np.zeros(n - 1) 
-    Cts[0] = 1 # We are only interested in the first state in this example
-    Cts = np.expand_dims(Cts,axis=0)
-
-    # Set "D" matrix
-    Dts = 0.*np.matmul(Cts,Bts)
+    Ats, Bts, Cts, Dts = estimatePlants(Xi,n,s)
     
     ## Update information for the MPC
     A_e, B_e, C_e, Hessian, Phi_F, Phi_R = mpcgain(Ats,Bts,Cts,Nc,Np)
@@ -179,9 +151,11 @@ for x in range(0,N_sim):
     kk = np.append(kk,x)
     
 plt.plot(kk,y1)
+plt.plot(kk,ref)
 plt.xlabel('Sampling Instant')
 plt.ylabel('Output')
 plt.title("Pass 1 - Output")
+plt.legend(["Output","Target"])
 plt.show()
 
 
@@ -197,19 +171,24 @@ plt.show()
 ic = 10 # initial condtion (!!)
 xm = np.array([[ic],[0],[0],[0]]) # Sets initial state conditions
 xf = np.zeros((n,1))
-N_sim = 250 # number of simulation points (!!)
+N_sim = 500 # number of simulation points (!!)
 
 r = 30 # target value for the MPC (!!)
 u = 0 # u(k-1) = 0
 y = ic
-Old_Ats = Ats
 
 u1=[]
 y1=[]
+ref=[]
 
 ## Simulate over number of simulation points
 for kk in range(0,N_sim):
-    
+    # Adjust reference value
+    if kk == 200:
+        r = 15
+    if kk == 400:
+        r = 20
+        
     # Calculate input delta
     # Step 1
     side1= Phi_R*r
@@ -227,6 +206,7 @@ for kk in range(0,N_sim):
     # Record input and meaurement info
     u1 = np.append(u1,u)
     y1 = np.append(y1,y)
+    ref = np.append(ref,r)
     
     # Calculate system's response
     xm_old = xm
@@ -285,9 +265,11 @@ for x in range(0,N_sim):
     kk = np.append(kk,x)
     
 plt.plot(kk,y1)
+plt.plot(kk,ref)
 plt.xlabel('Sampling Instant')
 plt.ylabel('Output')
 plt.title("Pass 2 - Output")
+plt.legend(["Output","Target"])
 plt.show()
     
     

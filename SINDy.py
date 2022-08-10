@@ -118,6 +118,32 @@ def sparsifyDynamics(Theta, dXdt, lambda_, n):
         
     return Xi
 
+
+
+def estimatePlants(Xi,n,s):
+    ## Update Estimated Plant Matrices
+    # Inputs: Xi: Regressed dynamics matrix
+    #          n: System size + control
+    #          s: Number of states
+    
+    # Set "A" and "B" matrices
+    Ats = Xi[1:n,0]
+    Bts = Xi[n,0]
+    for x in range(1,s):
+        Ats = np.vstack([Ats,Xi[1:n,x]])
+        Bts = np.vstack([Bts,Xi[n,x]])
+    
+    # Set "C" matrix
+    Cts = np.zeros(n - 1) 
+    Cts[0] = 1 # We are only interested in the first state in this example
+    Cts = np.expand_dims(Cts,axis=0)
+
+    # Set "D" matrix
+    Dts = 0.*np.matmul(Cts,Bts)
+    
+    return Ats, Bts, Cts, Dts
+
+
 '''
 #################
 ### Unit Test ###

@@ -10,10 +10,13 @@ Description: Function library for MPC
                  inv(Phi'Phi + R_bar) is known as the Hessian Matrix
                  x[k] is the state information
                  r[k] is the set point (target)
-                 
+             
+             gatekeeper function is to enforce a consistent step time 
+             
 @author: Scott McGregor
 """
 import numpy as np
+import time
 
 def mpcgain(Ap,Bp,Cp,Nc,Np):
     # Set up MPC design matrices
@@ -96,6 +99,18 @@ def mpcgain(Ap,Bp,Cp,Nc,Np):
       
     return A_e, B_e, C_e, Hessian, Phi_F, Phi_R
 
+
+def gatekeeper(current_time, delay_length):
+    ## Function to enforce a constant delay between the start of a loop and
+    ## its completion. The idea is to not propagate delays due to calculation time.
+    ## This function should be the last part of a calculation loop.
+    # Inputs: current_time: start of function
+    #         delay_length: seconds until next loop can begin
+    target = current_time + delay_length
+    while(time.time() < target):
+        continue
+    
+    
 '''
 #################
 ### Unit Test ###

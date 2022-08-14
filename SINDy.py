@@ -15,6 +15,7 @@ Description: Function library for Sparse Identification (SINDy)
 import numpy as np
 from scipy import sparse
 from sklearn.linear_model import Lasso
+from MPCpy import *
 
 def poolData(yin,nVars,polyorder,usesine):
     ## Builds the Theta matrix that is the library of state terms,
@@ -144,6 +145,54 @@ def estimatePlants(Xi,n,s):
     return Ats, Bts, Cts, Dts
 
 
+def artificialData(Ad, Bd, Cd, xm, Nc, Np, points):
+    ## Generate a false data set to initialize the bias the system
+    # This allows for some initial design of the system
+    u = 0
+    r = 1
+    X1 = []
+    X2 = []
+    n = Ad.shape[1] + 1 # Number of states + control
+    xf = np.zeros((n,1))
+    
+    A_e, B_e, C_e, Hessian, Phi_F, Phi_R = mpcgain(Ad,Bd,Cd,Nc,Np)
+    
+    # Calculate the initial data stream
+    for iterations in range(0,points):
+        # Calculate input delta
+        # Step 1
+        side1= Phi_R*r
+        # Step 2
+        side2 = np.matmul(Phi_F,xf)
+        # Step 3
+        side1 = np.matmul(Hessian,side1)
+        # Step 4
+        side2 = np.matmul(Hessian,side2)
+        # Step 5
+        du = side1 - side2
+        deltau = du[0,0]
+        u=u+deltau
+    
+        # Calculate system's response
+        xm_old = xm
+        xm = np.matmul(Ad,xm) + Bd*u
+        y = np.matmul(Cts,xm)
+        diffX = xm - xm_old
+        xf = np.vstack([diffX,y])
+        
+        ## Reinitialize the system / SINDy based on new readings
+        # Create temp files to be appended to data log
+        duv = np.array([u])[np.newaxis]
+        tX1 = np.hstack([xm_old.T,duv])
+        one = np.array([1])[np.newaxis]
+        tX2 = np.hstack([xm.T,one])
+        # Append data logs
+        X1 = np.vstack([X1,tX1])
+        X2 = np.vstack([X2,tX2])
+        
+    
+    return X1, X2
+    
 '''
 #################
 ### Unit Test ###
